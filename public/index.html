@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Mobile</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- LOGIN -->
+    <div id="login-container">
+        <h2>Bem-vindo ao Chat</h2>
+        <input type="text" id="login-username" placeholder="Digite seu nome">
+        <button id="login-btn">Entrar</button>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chat-container" style="display: none;">
+        <div id="header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h2>Chat Online</h2>
+            <div id="user-display-container" style="display:flex; align-items:center; gap:5px;">
+                <span id="user-display"></span>
+                <span id="video-indicator" style="display:none;">📹</span>
+            </div>
+        </div>
+
+        <div id="messages"></div>
+
+        <div id="video-container" style="display:none; flex-direction: column; gap:10px;">
+            <video id="local-video" autoplay muted playsinline style="width:100%; max-height:200px; border-radius:10px; background:#000;"></video>
+            <div id="remote-videos" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+        </div>
+
+        <div id="input-container">
+            <input type="text" id="message" placeholder="Digite sua mensagem">
+            <button id="send-message">Enviar</button>
+            <input type="file" id="send-image" accept="image/*">
+            <button id="record-audio">🎤 Gravar Áudio</button>
+            <button id="camera-btn">📷</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+
+    <script>
+        // Mostrar indicador de vídeo ativo no topo
+        const videoIndicator = document.getElementById("video-indicator");
+
+        // Atualizar indicador quando o usuário atual começa/parar a transmissão
+        const observer = new MutationObserver(() => {
+            if(cameraBtn.textContent === "⛔") {
+                videoIndicator.style.display = "inline";
+            } else {
+                videoIndicator.style.display = "none";
+            }
+        });
+
+        observer.observe(cameraBtn, { characterData: true, subtree: true, childList: true });
+    </script>
+</body>
+</html>

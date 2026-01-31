@@ -1,0 +1,232 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(270deg, #1f1c2c, #928dab, #1f1c2c);
+    background-size: 600% 600%;
+    animation: bgMove 15s ease infinite;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* FUNDO ANIMADO */
+@keyframes bgMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* LOGIN */
+#login-container {
+    width: 92%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(14px);
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeIn 0.8s ease forwards;
+    box-shadow: 0 0 40px rgba(0,0,0,0.3);
+}
+
+#login-container h2 {
+    margin-bottom: 20px;
+    color: #fff;
+    font-size: 1.7rem;
+}
+
+#login-container input {
+    width: 100%;
+    padding: 16px;
+    margin: 15px 0;
+    border: none;
+    border-radius: 14px;
+    font-size: 1rem;
+    outline: none;
+}
+
+#login-container button {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    color: white;
+    cursor: pointer;
+    font-size: 1.05rem;
+    transition: 0.3s;
+}
+
+#login-container button:active {
+    transform: scale(0.97);
+}
+
+/* CHAT */
+#chat-container {
+    width: 92%;
+    max-width: 480px;
+    height: 95vh;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(14px);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.35);
+}
+
+/* HEADER */
+#header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+/* MESSAGES */
+#messages {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.18);
+    padding: 15px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+}
+
+/* BALÕES */
+.message {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 20px;
+    word-wrap: break-word;
+    animation: popMessage 0.25s ease forwards;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* SUA */
+.message.self {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    color: #fff;
+    align-self: flex-start;
+    border-bottom-left-radius: 6px;
+}
+
+/* OUTRO */
+.message.other {
+    background: #ffffff;
+    color: #000;
+    align-self: flex-end;
+    border-bottom-right-radius: 6px;
+}
+
+/* MEDIA */
+.message img {
+    max-width: 220px;
+    border-radius: 12px;
+    margin-top: 5px;
+}
+
+.message audio {
+    width: 200px;
+    margin-top: 6px;
+}
+
+/* INPUT AREA */
+#input-container {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+#input-container input[type="text"] {
+    flex: 1 1 65%;
+    padding: 14px;
+    border-radius: 20px;
+    border: none;
+    font-size: 1rem;
+    outline: none;
+}
+
+/* BOTÕES GERAIS */
+#input-container button {
+    padding: 14px;
+    border: none;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#input-container button:active {
+    transform: scale(0.95);
+}
+
+/* ENVIAR */
+#send-message {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+    flex: 1 1 30%;
+}
+
+/* ÁUDIO */
+#record-audio {
+    background: linear-gradient(135deg, #ff5722, #ff7043);
+    flex: 1 1 100%;
+}
+
+/* CÂMERA */
+#camera-btn {
+    background: linear-gradient(135deg, #9c27b0, #ba68c8);
+    flex: 1 1 20%;
+}
+
+/* IMAGEM */
+#send-image {
+    flex: 1 1 100%;
+}
+
+#send-image::-webkit-file-upload-button {
+    visibility: hidden;
+}
+
+#send-image::before {
+    content: "📷 Enviar Imagem";
+    display: block;
+    background: linear-gradient(135deg, #2196f3, #64b5f6);
+    color: white;
+    padding: 14px;
+    border-radius: 20px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* VIDEO */
+#video-container video {
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+/* ANIMAÇÕES */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popMessage {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
