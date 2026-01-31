@@ -8,15 +8,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const messagesFile = path.join(__dirname, 'messages.txt');
 
-// Servir arquivos estáticos
 app.use(express.static('public'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Carregar mensagens do arquivo
 function loadMessages() {
     if(fs.existsSync(messagesFile)) {
         return fs.readFileSync(messagesFile, 'utf8')
@@ -26,19 +24,15 @@ function loadMessages() {
     return [];
 }
 
-// Salvar nova mensagem no arquivo
 function saveMessage(line) {
     fs.appendFileSync(messagesFile, line + "\n");
 }
 
-// Conexão Socket.IO
 io.on('connection', (socket) => {
     console.log('Novo usuário conectado');
 
-    // Envia histórico para o usuário que entrou
     socket.emit('chat history', loadMessages());
 
-    // NOVA MENSAGEM
     socket.on('new message', (data) => {
         const { username, message, image, audio } = data;
         let line = `<strong>${username}:</strong> ${message || ''}`;
@@ -53,30 +47,22 @@ io.on('connection', (socket) => {
     // -----------------------
     // VIDEOCHAT (WebRTC)
     // -----------------------
-
-    // Usuário entrou na chamada de vídeo
     socket.on('join-video', (username) => {
         socket.broadcast.emit('new-peer', username);
     });
 
-    // Envia offer para outro usuário
     socket.on('offer', ({ to, from, offer }) => {
-        socket.broadcast.emit('offer', { from, offer });
+        io.emit('offer', { to, from, offer }); // enviar para todos
     });
 
-    // Envia answer para o remetente da offer
-    socket.on('answer', ({ to, answer }) => {
-        socket.broadcast.emit('answer', { from: to, answer });
+    socket.on('answer', ({ to, from, answer }) => {
+        io.emit('answer', { to, from, answer });
     });
 
-    // Envia ICE candidates para outro usuário
-    socket.on('ice-candidate', ({ to, candidate }) => {
-        socket.broadcast.emit('ice-candidate', { from: to, candidate });
+    socket.on('ice-candidate', ({ to, from, candidate }) => {
+        io.emit('ice-candidate', { to, from, candidate });
     });
 
-    // -----------------------
-    // INDICADOR DE VÍDEO ATIVO
-    // -----------------------
     socket.on('video-active', (username) => {
         socket.broadcast.emit('video-active', username);
     });
@@ -84,7 +70,14 @@ io.on('connection', (socket) => {
     socket.on('video-inactive', (username) => {
         socket.broadcast.emit('video-inactive', username);
     });
+
+    socket.on('typing', (username) => {
+        socket.broadcast.emit('typing', username);
+    });
+
+    socket.on('stop-typing', (username) => {
+        socket.broadcast.emit('stop-typing', username);
+    });
 });
 
-// Iniciar servidor
 server.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
