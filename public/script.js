@@ -159,10 +159,10 @@ recordAudioBtn.addEventListener("click", () => {
 });
 
 // -----------------------
-// VIDEOCHAT COM WEBRTC
+// VIDEOCHAT COM WEBRTC (AGORA GLOBAL PARA TODOS)
 // -----------------------
 let localStream;
-let peers = {}; 
+let peers = {};
 let isStreaming = false;
 
 cameraBtn.addEventListener("click", async () => {
@@ -172,48 +172,41 @@ cameraBtn.addEventListener("click", async () => {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream;
 
-        socket.emit("join-video", username);
-        cameraBtn.textContent = "⛔"; 
         isStreaming = true;
+        cameraBtn.textContent = "⛔";
 
-        activeVideoUsers.add(username);
-        socket.emit("video-active", username);
+        // AVISA TODOS: iniciando vídeo
+        socket.emit("start-video", username);
 
     } else {
         if(localStream) {
             localStream.getTracks().forEach(track => track.stop());
             localVideo.srcObject = null;
         }
-        for(let peerId in peers) {
-            peers[peerId].close();
-        }
-        peers = {};
-        cameraBtn.textContent = "📷"; 
-        isStreaming = false;
 
-        activeVideoUsers.delete(username);
-        socket.emit("video-inactive", username);
+        Object.values(peers).forEach(pc => pc.close());
+        peers = {};
+
+        socket.emit("stop-video");
+        cameraBtn.textContent = "📷";
+        isStreaming = false;
     }
 });
 
-// -----------------------
-// RECEBER VÍDEO DE OUTROS
-// -----------------------
-socket.on("new-peer", async (peerId) => {
-    if(peerId === username) return;
-
+// ---------- RECEBENDO VÍDEO DE OUTROS (SEM LISTA, AUTOMÁTICO) ----------
+socket.on("user-started-video", async ({ socketId }) => {
     const pc = new RTCPeerConnection();
-    peers[peerId] = pc;
+    peers[socketId] = pc;
 
-    if(isStreaming) {
+    if(localStream) {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
     }
 
     pc.ontrack = e => {
-        let remoteVideo = document.getElementById("remote-"+peerId);
+        let remoteVideo = document.getElementById("remote-" + socketId);
         if(!remoteVideo) {
             remoteVideo = document.createElement("video");
-            remoteVideo.id = "remote-"+peerId;
+            remoteVideo.id = "remote-" + socketId;
             remoteVideo.autoplay = true;
             remoteVideo.playsInline = true;
             remoteVideo.style.width = "100%";
@@ -226,22 +219,22 @@ socket.on("new-peer", async (peerId) => {
 
     pc.onicecandidate = event => {
         if(event.candidate) {
-            socket.emit("ice-candidate", { to: peerId, candidate: event.candidate });
+            socket.emit("ice-candidate", { to: socketId, from: socket.id, candidate: event.candidate });
         }
     };
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    socket.emit("offer", { to: peerId, from: username, offer });
+
+    socket.emit("offer", { to: socketId, from: socket.id, offer });
 });
 
+// OFERTAS, RESPOSTAS E ICE
 socket.on("offer", async ({ from, offer }) => {
     const pc = new RTCPeerConnection();
     peers[from] = pc;
 
-    if(isStreaming) {
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    }
+    if(localStream) localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     pc.ontrack = e => {
         let remoteVideo = document.getElementById("remote-"+from);
@@ -272,9 +265,16 @@ socket.on("answer", async ({ from, answer }) => {
 });
 
 socket.on("ice-candidate", async ({ from, candidate }) => {
-    if(peers[from]) {
-        await peers[from].addIceCandidate(candidate);
+    if(peers[from]) await peers[from].addIceCandidate(candidate);
+});
+
+socket.on("user-stopped-video", (id) => {
+    if(peers[id]) {
+        peers[id].close();
+        delete peers[id];
     }
+    const v = document.getElementById("remote-" + id);
+    if(v) v.remove();
 });
 
 // -----------------------
