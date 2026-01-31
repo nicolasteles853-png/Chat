@@ -27,16 +27,11 @@ typingDiv.style.color = "#ccc";
 typingDiv.style.margin = "5px 0";
 messagesDiv.appendChild(typingDiv);
 
-// Usuários que estão transmitindo vídeo
+// Usuários que estão transmitindo vídeo e digitando
 let activeVideoUsers = new Set();
 let typingUsers = new Set();
-let localStream;
-let peers = {}; // RTCPeerConnections por usuário
-let isStreaming = false;
 
-// -----------------------
 // LOGIN
-// -----------------------
 loginBtn.addEventListener("click", () => {
     if(loginUsername.value.trim() !== "") {
         username = loginUsername.value.trim();
@@ -47,15 +42,12 @@ loginBtn.addEventListener("click", () => {
     }
 });
 
-// -----------------------
 // MENSAGENS
-// -----------------------
 function addMessage(line, sender) {
     const div = document.createElement('div');
     div.classList.add('message');
     div.classList.add(sender === username ? 'self' : 'other');
 
-    // Adiciona ícone de câmera se o usuário estiver transmitindo
     if(activeVideoUsers.has(sender)) {
         line = "📹 " + line;
     }
@@ -104,14 +96,10 @@ socket.on('chat message', (line) => {
     }
 });
 
-// -----------------------
 // ENVIAR TEXTO
-// -----------------------
 sendMessageBtn.addEventListener("click", sendMessage);
 messageInput.addEventListener("keypress", e => {
     if(e.key === "Enter") sendMessage();
-
-    // Emit typing
     socket.emit("typing", username);
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
@@ -126,9 +114,7 @@ function sendMessage() {
     socket.emit("stop-typing", username);
 }
 
-// -----------------------
 // ENVIAR IMAGEM
-// -----------------------
 sendImageInput.addEventListener("change", function() {
     const file = this.files[0];
     if(file) {
@@ -141,9 +127,7 @@ sendImageInput.addEventListener("change", function() {
     }
 });
 
-// -----------------------
 // GRAVAR ÁUDIO
-// -----------------------
 let mediaRecorder;
 let audioChunks = [];
 
@@ -175,35 +159,27 @@ recordAudioBtn.addEventListener("click", () => {
 });
 
 // -----------------------
-// VIDEOCHAT COM WEbrtc
+// VIDEOCHAT COM WEBRTC
 // -----------------------
+let localStream;
+let peers = {}; 
+let isStreaming = false;
+
 cameraBtn.addEventListener("click", async () => {
     if(!isStreaming) {
-        // INICIAR TRANSMISSÃO
         if(videoContainer.style.display === "none") videoContainer.style.display = "flex";
 
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream;
 
         socket.emit("join-video", username);
-        cameraBtn.textContent = "⛔";
+        cameraBtn.textContent = "⛔"; 
         isStreaming = true;
 
-        // Informar os outros usuários que está transmitindo
         activeVideoUsers.add(username);
         socket.emit("video-active", username);
 
-        // Criar conexões para usuários que já estão transmitindo
-        socket.on('active-video-users', (users) => {
-            users.forEach(user => {
-                if(user !== username) {
-                    createPeerConnection(user);
-                }
-            });
-        });
-
     } else {
-        // PARAR TRANSMISSÃO
         if(localStream) {
             localStream.getTracks().forEach(track => track.stop());
             localVideo.srcObject = null;
@@ -212,7 +188,7 @@ cameraBtn.addEventListener("click", async () => {
             peers[peerId].close();
         }
         peers = {};
-        cameraBtn.textContent = "📷";
+        cameraBtn.textContent = "📷"; 
         isStreaming = false;
 
         activeVideoUsers.delete(username);
@@ -221,15 +197,17 @@ cameraBtn.addEventListener("click", async () => {
 });
 
 // -----------------------
-// CRIA PEER CONNECTION
+// RECEBER VÍDEO DE OUTROS
 // -----------------------
-async function createPeerConnection(peerId) {
-    if(peers[peerId]) return;
+socket.on("new-peer", async (peerId) => {
+    if(peerId === username) return;
 
     const pc = new RTCPeerConnection();
     peers[peerId] = pc;
 
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    if(isStreaming) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    }
 
     pc.ontrack = e => {
         let remoteVideo = document.getElementById("remote-"+peerId);
@@ -238,35 +216,64 @@ async function createPeerConnection(peerId) {
             remoteVideo.id = "remote-"+peerId;
             remoteVideo.autoplay = true;
             remoteVideo.playsInline = true;
+            remoteVideo.style.width = "100%";
+            remoteVideo.style.maxHeight = "200px";
+            remoteVideo.style.borderRadius = "10px";
             remoteVideos.appendChild(remoteVideo);
         }
         remoteVideo.srcObject = e.streams[0];
     };
 
-    pc.onicecandidate = e => {
-        if(e.candidate) socket.emit("ice-candidate", { to: peerId, candidate: e.candidate });
+    pc.onicecandidate = event => {
+        if(event.candidate) {
+            socket.emit("ice-candidate", { to: peerId, candidate: event.candidate });
+        }
     };
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     socket.emit("offer", { to: peerId, from: username, offer });
-}
-
-// -----------------------
-// INDICADOR DE VÍDEO ATIVO
-// -----------------------
-socket.on("video-active", async (user) => {
-    activeVideoUsers.add(user);
-    if(isStreaming) createPeerConnection(user);
 });
 
-socket.on("video-inactive", (user) => {
-    activeVideoUsers.delete(user);
-    if(peers[user]) {
-        peers[user].close();
-        delete peers[user];
-        const vid = document.getElementById("remote-" + user);
-        if(vid) vid.remove();
+socket.on("offer", async ({ from, offer }) => {
+    const pc = new RTCPeerConnection();
+    peers[from] = pc;
+
+    if(isStreaming) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    }
+
+    pc.ontrack = e => {
+        let remoteVideo = document.getElementById("remote-"+from);
+        if(!remoteVideo) {
+            remoteVideo = document.createElement("video");
+            remoteVideo.id = "remote-"+from;
+            remoteVideo.autoplay = true;
+            remoteVideo.playsInline = true;
+            remoteVideos.appendChild(remoteVideo);
+        }
+        remoteVideo.srcObject = e.streams[0];
+    };
+
+    pc.onicecandidate = event => {
+        if(event.candidate) {
+            socket.emit("ice-candidate", { to: from, candidate: event.candidate });
+        }
+    };
+
+    await pc.setRemoteDescription(offer);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit("answer", { to: from, answer });
+});
+
+socket.on("answer", async ({ from, answer }) => {
+    if(peers[from]) await peers[from].setRemoteDescription(answer);
+});
+
+socket.on("ice-candidate", async ({ from, candidate }) => {
+    if(peers[from]) {
+        await peers[from].addIceCandidate(candidate);
     }
 });
 
@@ -288,52 +295,7 @@ socket.on("stop-typing", (user) => {
 });
 
 // -----------------------
-// WEBRTC (offer/answer/candidate)
-socket.on("new-peer", async (peerId) => {
-    if(peerId === username || !isStreaming) return;
-    createPeerConnection(peerId);
-});
-
-socket.on("offer", async ({ from, offer }) => {
-    const pc = new RTCPeerConnection();
-    peers[from] = pc;
-
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.ontrack = e => {
-        let remoteVideo = document.getElementById("remote-"+from);
-        if(!remoteVideo) {
-            remoteVideo = document.createElement("video");
-            remoteVideo.id = "remote-"+from;
-            remoteVideo.autoplay = true;
-            remoteVideo.playsInline = true;
-            remoteVideos.appendChild(remoteVideo);
-        }
-        remoteVideo.srcObject = e.streams[0];
-    };
-
-    pc.onicecandidate = e => {
-        if(e.candidate) socket.emit("ice-candidate", { to: from, candidate: e.candidate });
-    };
-
-    await pc.setRemoteDescription(offer);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit("answer", { to: from, answer });
-});
-
-socket.on("answer", async ({ from, answer }) => {
-    if(peers[from]) await peers[from].setRemoteDescription(answer);
-});
-
-socket.on("ice-candidate", async ({ from, candidate }) => {
-    if(peers[from]) {
-        await peers[from].addIceCandidate(candidate);
-    }
-});
-
+// VIDEO ACTIVE INDICATOR
 // -----------------------
-// RECEBE LISTA DE USUÁRIOS QUE JÁ ESTÃO TRANSMITINDO
-socket.on('active-video-users', (users) => {
-    users.forEach(user => activeVideoUsers.add(user));
-});
+socket.on("video-active", (user) => activeVideoUsers.add(user));
+socket.on("video-inactive", (user) => activeVideoUsers.delete(user));
